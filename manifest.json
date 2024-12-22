@@ -1,0 +1,32 @@
+{
+    "manifest_version": 3,
+    "name": "CryptoChat",
+    "version": "2.0",
+    "description": "Don't you know pump it up. you've got to pump it up",
+    "permissions": ["activeTab", "scripting", "storage"],
+    "host_permissions": ["<all_urls>"],
+    "action": {
+      "default_popup": "popup.html",
+      "default_icon": {
+        "16": "assets/logo.png",
+        "48": "assets/logo.png",
+        "128": "assets/logo.png"
+      }
+    },
+    "content_scripts": [
+      {
+        "matches": ["https://pump.fun/*", "https://dexscreener.com/*", "https://bullx.io/*"],
+        "js": ["content.js"]
+      }
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": ["sidebar.html", "sidebar.js", "sidebar.css", "assets/*"],
+            "matches": ["<all_urls>"]
+          }
+    ]
+  }
+  

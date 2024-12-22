@@ -1,0 +1,69 @@
+@font-face {
+    font-family: 'Passion One';
+    src: url('assets/PassionOne-Regular.ttf') format('ttf');
+    font-weight: 500;
+    font-style: normal;
+}
+
+#CryptoChat {
+    position:fixed;
+    top:0;
+    right:0;
+    height:100%;
+    z-index: 10000;
+    color:white;
+    background: #232424;
+    padding:1em;
+}
+
+#CryptoChat .header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.sidebar-inner {
+    display:flex;
+    flex-direction: column;
+    height:100%;
+}
+#CryptoChat .body {
+    flex-grow: 1;
+}
+
+#CryptoChat #headerLogo {
+    width: 2em;
+}
+#CryptoChat h1 {
+    font-family: 'Passion One', serif;
+    font-size: 1.5em;
+    font-weight: 500;
+    margin: 0 0 0 0.25em;
+}
+
+#CryptoChat .loader-container {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: center;
+    height:100%;
+}
+#CryptoChat .loader {
+    width: 35px;
+    aspect-ratio: 1;
+    --_g: no-repeat radial-gradient(farthest-side,#0fb9e4 94%,#0000);
+    background:
+      var(--_g) 0    0,
+      var(--_g) 100% 0,
+      var(--_g) 100% 100%,
+      var(--_g) 0    100%;
+    background-size: 40% 40%;
+    animation: l38 1s infinite; 
+  }
+  @keyframes l38 {
+    100% {background-position: 100% 0,100% 100%,0 100%,0 0}
+  }
+
+  #CryptoChat .loader-container p {
+    margin-top: 1em;
+}
