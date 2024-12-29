@@ -115,7 +115,7 @@ class Sidebar {
         if (this.sidebarVisible) return;
 
         try {
-            const response = await fetch(chrome.runtime.getURL("sidebar.html"));
+            const response = await fetch(chrome.runtime.getURL("content.html"));
             let html = await response.text();
             await this.injectFonts();
 
@@ -132,7 +132,7 @@ class Sidebar {
 
             const styles = document.createElement("link");
             styles.rel = 'stylesheet';
-            styles.href = chrome.runtime.getURL("sidebar.css");
+            styles.href = chrome.runtime.getURL("content.css");
             (document.head || document.documentElement).appendChild(styles);
 
             this.sidebarVisible = true;
