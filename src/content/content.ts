@@ -1,35 +1,36 @@
-// Enums for environments and routes
-const ENV = {
-    DEXSCREENER: 'dexscreener.com',
-    BULLX: 'bullx.io',
-    PUMPFUN: 'pump.fun',
-};
+import { apiRequest, Method } from "../util/apiRequest";
 
-const ROUTES = {
-    AUTHENTICATION: '/authentication',
-    TOKEN: '/token',
-};
-
-// Utility for API requests
-async function apiRequest(method, route, body) {
-    return new Promise((resolve, _reject) => {
-        chrome.runtime.sendMessage(
-            {
-                action: 'fetchAPI',
-                url: route,
-                method: method,
-                body: body,
-            },
-            (response) => {
-                resolve({ success: response.success, status: response.status, data: response.data });
-            }
-        );
-    });
+type Message = {
+    username: string;
+    message: string;
+    timestamp: string;
 }
+
+type Token = {
+    meta: {
+        address: string;
+        ticker: string;
+        name: string;
+        logoUrl: string;
+    },
+    messages: Message[];
+}
+
+// Enums for environments and routes
+enum ENV {
+    DEXSCREENER = 'dexscreener.com',
+    BULLX = 'bullx.io',
+    PUMPFUN = 'pump.fun',
+};
+
+enum ROUTES {
+    AUTHENTICATION = '/authentication',
+    TOKEN = '/token',
+};
 
 // Utility to detect current environment
 class EnvironmentDetector {
-    static getEnvironment(url) {
+    static getEnvironment(url: string) {
         if (url.includes(ENV.DEXSCREENER)) {
             return ENV.DEXSCREENER;
         } else if (url.includes(ENV.BULLX)) {
@@ -40,16 +41,27 @@ class EnvironmentDetector {
         return null;
     }
 
-    static getTokenAddress(url) {
+    static getTokenAddress(url: string) {
         const currentEnvironment = this.getEnvironment(url);
         if (currentEnvironment === ENV.PUMPFUN) {
             const urlParts = url.split('/');
+            if(urlParts.length < 3) return null;
+            if(urlParts[urlParts.length - 2] != 'coin') return null;
             return urlParts[urlParts.length - 1];
         } else if (currentEnvironment === ENV.BULLX) {
             const urlParams = new URLSearchParams(window.location.search);
+            if(!urlParams.has('address')) return null;
             return urlParams.get('address');
-        } else if (currentEnvironment === ENV.DEXSCREENER) {
-            return window.__SERVER_DATA.route.data.pair.pair.baseToken.address;
+        } 
+        else if (currentEnvironment === ENV.DEXSCREENER) {
+            const aTags = document.getElementsByTagName('a');
+            for (let i = 0; i < aTags.length; i++) {
+                const href = aTags[i].href;
+                if (href.includes('solscan.io/token/') && !href.includes('So11111111111111111111111111111111111111112')) {
+                    const urlParts = aTags[i].href.split('/');
+                    return urlParts[urlParts.length - 1];
+                }
+            }
         }
         console.error('Platform not supported');
         return null;
@@ -58,11 +70,14 @@ class EnvironmentDetector {
 
 // Class for rendering dynamic content in the sidebar
 class DynamicRenderer {
-    constructor(containerSelector) {
+    container: HTMLElement | null;
+    constructor(containerSelector: string) {
         this.container = document.querySelector(containerSelector);
+        // this.container: = document.querySelector(containerSelector);
     }
 
-    renderLoading(message = "Loading...") {
+    renderLoading(message:string = "Loading...") {
+        if (!this.container) return;
         this.container.innerHTML = `
             <div class="loader-container">
                 <div class="loader"></div>
@@ -70,24 +85,27 @@ class DynamicRenderer {
             </div>`;
     }
 
-    renderError(error) {
+    renderError(error:string) {
+        if (!this.container) return;
         this.container.innerHTML = `
             <div class="error-message">
-                <p>Error: ${error}</p>
+                <p>${error}</p>
             </div>`;
     }
 
-    renderTokenInfo(data) {
-        const token = data.token;
+    renderTokenInfo(token: Token) {
+        if (!this.container) return;
+
         this.container.innerHTML = `
             <div>
-                <img src="${token.logoUrl}" alt="Token logo" />
-                <p><strong>${token.ticker}</strong> ${token.name}</p>
-                <p>${token.address}</p>
+                <img src="${token.meta.logoUrl}" alt="Token logo" />
+                <p><strong>${token.meta.ticker}</strong> ${token.meta.name}</p>
+                <p>${token.meta.address}</p>
             </div>`;
     }
 
-    renderCreateTokenForm(tokenAddress) {
+    renderCreateTokenForm(tokenAddress: string) {
+        if (!this.container) return;
         this.container.innerHTML = `
             <div>
                 <p>No token found for address: ${tokenAddress}</p>
@@ -98,11 +116,41 @@ class DynamicRenderer {
 
 // Sidebar logic
 class Sidebar {
+    popupWidth: string;
+    sidebarVisible: boolean;
+    cachedPageStyle: string;
+    currentEnvironment: string | null;
+    renderer: DynamicRenderer | null;
+    currentTokenAddress: string | null;
+    pollingInterval: number;
+    pollingTimer: number | null;
+
     constructor(popupWidth = '300px') {
         this.popupWidth = popupWidth;
         this.sidebarVisible = false;
-        this.cachedPageStyle = null;
+        this.cachedPageStyle = '0px';
         this.currentEnvironment = EnvironmentDetector.getEnvironment(window.location.href);
+        this.renderer = null;
+        this.currentTokenAddress = null;
+        this.pollingInterval = 3000; // Check every 3 seconds
+        this.pollingTimer = null;
+    }
+
+    startPolling() {
+        this.pollingTimer = window.setInterval(async () => {
+            const newTokenAddress = EnvironmentDetector.getTokenAddress(window.location.href);
+            if (newTokenAddress !== this.currentTokenAddress && newTokenAddress != null) {
+                this.currentTokenAddress = newTokenAddress;
+                await this.initializeToken();
+            }
+        }, this.pollingInterval);
+    }
+
+    stopPolling() {
+        if (this.pollingTimer) {
+            window.clearInterval(this.pollingTimer);
+            this.pollingTimer = null;
+        }
     }
 
     async injectFonts() {
@@ -119,7 +167,6 @@ class Sidebar {
             let html = await response.text();
             await this.injectFonts();
 
-            // Replace relative paths with runtime URLs
             html = html.replace(/src="assets\//g, `src="${chrome.runtime.getURL('assets/')}`);
 
             const sidebarContainer = document.createElement("div");
@@ -138,6 +185,10 @@ class Sidebar {
             this.sidebarVisible = true;
             this.renderer = new DynamicRenderer('#CryptoChat .body');
             this.renderer.renderLoading("");
+
+            // Start polling for token changes
+            this.startPolling();
+
             this.initializeToken();
         } catch (error) {
             console.error("Failed to inject sidebar:", error);
@@ -148,6 +199,9 @@ class Sidebar {
         document.getElementById("CryptoChat")?.remove();
         this.resetDocumentStyles();
         this.sidebarVisible = false;
+
+        // Stop polling when sidebar is removed
+        this.stopPolling();
     }
 
     setDocumentStyles() {
@@ -156,7 +210,7 @@ class Sidebar {
             if (!navElement) return;
 
             const navWidth = window.getComputedStyle(navElement).width;
-            const mainChild = document.querySelector('main > div');
+            const mainChild: HTMLElement | null = document.querySelector('main > div');
             if (mainChild) {
                 this.cachedPageStyle = mainChild.style.width;
                 mainChild.style.width = `calc(100vw - ${navWidth} - ${this.popupWidth})`;
@@ -168,36 +222,33 @@ class Sidebar {
 
     resetDocumentStyles() {
         if (this.currentEnvironment === ENV.DEXSCREENER) {
-            const mainChild = document.querySelector('main > div');
+            const mainChild: HTMLElement | null = document.querySelector('main > div');
             if (mainChild) {
                 mainChild.style.width = this.cachedPageStyle;
             }
         } else {
-            document.body.style.marginRight = 0;
+            document.body.style.marginRight = '0px';
         }
     }
 
     async initializeToken() {
+        if (!this.renderer) return;
         console.log('Initializing token...');
         const tokenAddress = EnvironmentDetector.getTokenAddress(window.location.href);
         if (!tokenAddress) {
-            this.renderer.renderError("Token address not found.");
+            this.renderer.renderError("Error loading token info.");
             return;
         }
 
+        this.currentTokenAddress = tokenAddress; // Update current token address
         this.renderer.renderLoading("Getting token info...");
-        const response = await apiRequest('GET', `${ROUTES.TOKEN}/${tokenAddress}`);
+        const response = await apiRequest(Method.GET, `${ROUTES.TOKEN}/${tokenAddress}`);
 
         if (response.success) {
             this.renderer.renderTokenInfo(response.data);
         } else if (response.status === 404) {
-            // this.renderer.renderCreateTokenForm(tokenAddress);
-
-            const createResponse = await apiRequest('POST', `${ROUTES.TOKEN}`, {
-                address: tokenAddress,
-                ticker: 'TOK',
-                name: 'Token',
-                logoUrl: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
+            const createResponse = await apiRequest(Method.POST, `${ROUTES.TOKEN}`, {
+                address: tokenAddress
             });
 
             if (createResponse.success) {

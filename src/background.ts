@@ -18,7 +18,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               headers['Authorization'] = `Bearer ${token}`;
           }
 
-          const options = {
+          const options: any = {
               method: message.method || 'GET',
               headers: headers,
           };
