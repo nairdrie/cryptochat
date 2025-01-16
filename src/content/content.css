@@ -13,13 +13,15 @@
     z-index: 10000;
     color:white;
     background: #232424;
-    padding:1em;
+    /* padding:1em; */
 }
 
 #CryptoChat .header {
     display: flex;
     justify-content: center;
     align-items: center;
+    /* margin-bottom:1em; */
+    padding:1em;
 }
 
 .sidebar-inner {
@@ -66,4 +68,167 @@
 
   #CryptoChat .loader-container p {
     margin-top: 1em;
+}
+
+#CryptoChat .error-message {
+    height: 100%;
+    display:flex; 
+    flex-direction:column;
+    justify-content: center;
+    align-items: center;
+}
+
+#CryptoChat .token-container {
+    height:100%;
+    display: flex;
+    flex-direction: column;
+}
+
+#CryptoChat .token-container .token-header {
+    display: flex;
+    align-items: center;
+    padding:1em;
+    background: #1f2121;
+}
+
+#CryptoChat .token-container .token-header h2 {
+    font-size:1.5em;
+    margin: 0 0.5em;
+}
+
+#CryptoChat .token-container .token-header h2 .ticker{
+    font-weight: bold;
+    margin-bottom:-0.2em;
+}
+
+#CryptoChat .token-container .token-header h2 .ticker i{
+    font-weight: normal;
+    font-size:0.6em;
+}
+
+#CryptoChat .token-container .token-header h2 .name {
+    font-size:0.5em;
+}
+
+
+#CryptoChat .token-container .token-header .token-img{
+    height: 3em;
+    width: 3em;
+    border-radius: 50%;
+    border: 2px solid #0fb9e4;
+}
+
+#CryptoChat .token-container .token-header .ticker{
+    display:flex; 
+    align-items:center;
+}
+
+#CryptoChat .token-container .copy-icon {
+    cursor:pointer;
+    padding: 0.5em;
+}
+
+#CryptoChat .token-container .copy-popup {
+    font-size: 0.5em;
+    font-weight: normal;
+    color: grey;
+}
+
+#CryptoChat .token-container .copy-popup.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+#CryptoChat .token-container .copy-popup:not(.hidden) {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#CryptoChat .token-chat-container {
+    flex-grow:1;
+    display:flex;
+    flex-direction:column;
+}
+
+#CryptoChat .token-chat-container .empty-chat {
+    text-align: center;
+    color:rgb(182, 182, 182);
+    flex-grow:1;
+    display:flex;
+    flex-direction:column;
+    justify-content: center;
+    padding:1em;
+}
+
+#CryptoChat .token-chat-container .chat-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 0.5em;
+    box-sizing: border-box; /* Include padding in width calculations */
+}
+
+#CryptoChat .token-chat-container .chat-toolbar input.message-input {
+    background: #181818;
+    padding:0.5em 1em;
+    border-top-left-radius:1.5em;
+    border-bottom-left-radius:1.5em;
+    flex: 1 1 auto;
+    height: 2.5em;
+    box-sizing: border-box; /* Include padding in width calculations */
+    width:1px;
+}
+
+#CryptoChat .token-chat-container .chat-toolbar button.send-message {
+    padding: 0 0.7em;
+    background: #0fb9e4;
+    color:rgb(31 20 73);
+    height: 2.5em;
+    border-top-right-radius: 1.5em;
+    border-bottom-right-radius: 1.5em;
+    box-sizing: border-box; /* Include padding in width calculations */
+}
+
+#CryptoChat .empty-chat .maintext {
+    font-size: 1.2em;
+    font-weight:bold;
+}
+
+#CryptoChat .empty-chat .subtext {
+    font-size: 1em;
+}
+
+#CryptoChat .chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#CryptoChat .chat-message {
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#CryptoChat .message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+#CryptoChat .username {
+    font-weight: bold;
+    color: #333;
+}
+
+#CryptoChat .timestamp {
+    font-style: italic;
+    color: #999;
+}
+
+#CryptoChat .message-body {
+    font-size: 1em;
+    color: #444;
 }

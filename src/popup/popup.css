@@ -87,3 +87,71 @@ p {
   .slider.round:before {
     border-radius: 50%;
   }
+
+  #loginForm .form-group {
+    margin-top:0.5em;
+  }
+
+  #loginForm label {
+    display:block;
+    font-size:0.8em;
+    color:grey;
+    margin-bottom: 0.2em;
+  }
+
+  #loginForm input {
+      background: #181818;
+      border:0;
+      outline:0;
+      padding:0.5em 1em;
+      width:100%;
+      font-size:0.8em;
+      box-sizing:border-box;
+      color:white;
+  }
+
+  #loginForm button[type="submit"] {
+      margin-top:1.5em;
+      background: #0fb9e4;
+      border:0;
+      outline:0;
+      padding:0.3em 0.6em;
+      width:100%;
+      font-size:0.8em;
+      box-sizing:border-box;
+      color:white;
+      cursor:pointer;
+  }
+
+  #loginForm .divider {
+    padding: 0.5em 0;
+    position:relative;
+  }
+
+  #loginForm .divider hr {
+    background: grey;
+    height: 1px;
+    border: 0;
+  }
+
+  #loginForm .divider span{
+    color:grey;
+    background: #232424;
+    position: absolute;
+    left:50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    font-size:0.8em;
+    padding:0.5em;
+  }
+
+  #loginForm .error-message {
+    color:red;
+    font-size:0.8em;
+    margin: 0.5em 0;
+  }
+
+  #cc-popup .toggle-state {
+    font-size:0.7em;
+  }

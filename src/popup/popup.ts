@@ -1,123 +1,146 @@
 import { apiRequest, Method } from "../util/apiRequest";
 
-// Elements
-const bodyContainer = document.querySelector('.body');
-
-// Utility: Update the popup UI
-function renderAuthenticatedUI(user: { username: string }) {
-    if(!bodyContainer) return;
-    bodyContainer.innerHTML = `
-        <p>Welcome back, ${user.username || "User"}!</p>
-        <div class="toggle-container">
-            <label class="switch">
-                <input type="checkbox">
-                <span class="slider round"></span>
-            </label>
-        </div>
-    `;
-    attachToggleEvent();
+interface User {
+    username: string;
 }
 
-function renderLoginForm(errorMessage = "") {
-    if(!bodyContainer) return;
-    console.log("Rendering login form", errorMessage);
-    bodyContainer.innerHTML = `
-        <form id="loginForm" novalidate>
-            <div class="error-message" style="color: red; margin-bottom: 10px; ${errorMessage ? "" : "display: none;"}">
-                ${errorMessage}
+class AuthApp {
+    private bodyContainer: HTMLElement | null;
+
+    constructor() {
+        this.bodyContainer = document.querySelector('.body');
+        document.addEventListener('DOMContentLoaded', this.checkUserStatus.bind(this));
+    }
+
+    private renderAuthenticatedUI(user: User): void {
+        if (!this.bodyContainer) return;
+
+        this.bodyContainer.innerHTML = `
+            <div id="cc-popup">
+                <p>Welcome back, ${user.username || "User"}!</p>
+                <div class="cc-toggle-container">
+                    <p class="toggle-state">Sidebar Disabled</p>
+                    <div class="toggle-container">
+                        <label class="switch">
+                            <input type="checkbox">
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                </div>
             </div>
-            <input type="email" id="email" placeholder="Email" required />
-            <input type="password" id="password" placeholder="Password" required />
-            <button type="submit">Login</button>
-        </form>
-    `;
-    attachLoginEvent();
-}
+        `;
 
-// Attach toggle switch events
-function attachToggleEvent() {
-    const toggleSwitch: HTMLInputElement | null = document.querySelector('.toggle-container input[type="checkbox"]');
-    if(!toggleSwitch) return;
-    chrome.storage.local.get(['togglePreference'], (result) => {
-        const isChecked = result.togglePreference || false;
-        toggleSwitch.checked = isChecked;
-    });
+        this.attachToggleEvent();
+    }
 
-    toggleSwitch.addEventListener('change', (event:any) => {
-        const isChecked = event.target.checked;
-        chrome.storage.local.set({ togglePreference: isChecked }, () => {
-            console.log('Toggle preference saved:', isChecked);
+    private renderLoginForm(errorMessage = "", loading = false): void {
+        if (!this.bodyContainer) return;
+
+        this.bodyContainer.innerHTML = `
+            <form id="loginForm" novalidate>
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" placeholder="name@example.com" required />
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="password" required />
+                </div>
+                <div class="error-message" style="color: red; margin-bottom: 10px; ${errorMessage ? "" : "display: none;"}">
+                    ${errorMessage}
+                </div>
+                ${loading ? `<button disabled type="submit">...</button>` : `<button type="submit">Login</button>`}
+            </form>
+        `;
+
+        this.attachLoginEvent();
+    }
+
+    private attachToggleEvent(): void {
+        const toggleSwitch = document.querySelector<HTMLInputElement>('.toggle-container input[type="checkbox"]');
+        const toggleState = document.querySelector<HTMLElement>('.cc-toggle-container .toggle-state');
+
+        if (!toggleSwitch || !toggleState) return;
+
+        chrome.storage.local.get(['togglePreference'], (result) => {
+            const isChecked: boolean = result.togglePreference !== undefined ? result.togglePreference : false;
+            toggleSwitch.checked = isChecked;
+            toggleState.textContent = isChecked ? "Sidebar Enabled" : "Sidebar Disabled";
         });
 
-        const message = isChecked ? { action: 'toggleSidebarOn' } : { action: 'toggleSidebarOff' };
-        chrome.tabs.query({}, (tabs:any[]) => {
-            for (let tab of tabs) {
-                chrome.tabs.sendMessage(tab.id, message, (response) => {
-                    console.log(response?.status || 'No response from content script');
-                });
-            }
-        });
-    });
-}
-
-// Attach login form events
-function attachLoginEvent() {
-    const loginForm: HTMLElement | null = document.getElementById('loginForm');
-    if(!loginForm) return;
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault(); // Prevent the default form submission behavior
-
-        const emailElement = document.getElementById('email') as HTMLInputElement;
-        if(!emailElement) return;
-
-        const passwordElement = document.getElementById('password') as HTMLInputElement;
-        if(!passwordElement) return;
-
-        const email = emailElement.value.trim();
-        const password = passwordElement.value;
-
-        // Basic client-side validation
-        if (!email || !password) {
-            renderLoginForm("Email and password are required.");
-            return;
-        }
-
-        // Send login request
-        const response = await apiRequest(Method.POST, '/authentication', { email, password });
-        if (response.success) {
-            chrome.storage.local.set({ authToken: response.data.token }, () => {
-                console.log('Auth token saved');
-                checkUserStatus(); // Re-check authentication status after login
+        toggleSwitch.addEventListener('change', (event: Event) => {
+            const isChecked = (event.target as HTMLInputElement).checked;
+            chrome.storage.local.set({ togglePreference: isChecked }, () => {
+                console.log('Toggle preference saved:', isChecked);
+                toggleState.textContent = isChecked ? "Sidebar Enabled" : "Sidebar Disabled";
             });
-        }
-        else {
-            console.log('Login error from background.js:', response);
-            renderLoginForm(response.data.error); // Show error message dynamically
-        }
-    });
-}
 
+            const message = isChecked ? { action: 'toggleSidebarOn' } : { action: 'toggleSidebarOff' };
+            chrome.tabs.query({}, (tabs) => {
+                for (const tab of tabs) {
+                    chrome.tabs.sendMessage(tab.id!, message, (response) => {
+                        console.log(response?.status || 'No response from content script');
+                    });
+                }
+            });
+        });
+    }
 
-// Check authentication status on load
-function checkUserStatus() {
-    console.log("WEOCLOEM! checking user status");
-    chrome.storage.local.get(['authToken'], async (result) => {
-        const token = result.authToken;
-        console.log("Token:", token);
-        if (token) {
-            const response = await apiRequest(Method.GET, '/user', null);
-            if(response.success) {
-                renderAuthenticatedUI(response.data);
-            } else {
-                chrome.storage.local.remove('authToken', () => {
-                    renderLoginForm();
-                });
+    private attachLoginEvent(): void {
+        const loginForm = document.getElementById('loginForm');
+        if (!loginForm) return;
+
+        loginForm.addEventListener('submit', async (e: Event) => {
+            e.preventDefault();
+
+            const emailElement = document.getElementById('email') as HTMLInputElement;
+            const passwordElement = document.getElementById('password') as HTMLInputElement;
+
+            if (!emailElement || !passwordElement) return;
+
+            const email = emailElement.value.trim();
+            const password = passwordElement.value;
+
+            if (!email || !password) {
+                this.renderLoginForm("Email and password are required.");
+                return;
             }
-        } else {
-            renderLoginForm();
-        }
-    });
+
+            this.renderLoginForm("", true);
+
+            const response = await apiRequest(Method.POST, '/authentication', { email, password });
+
+            if (response.success) {
+                chrome.storage.local.set({ authToken: response.data.token }, () => {
+                    this.checkUserStatus();
+                });
+            } else {
+                const error = response.data ? response.data.error : "An error occurred. Please try again.";
+                this.renderLoginForm(error);
+            }
+        });
+    }
+
+    private async checkUserStatus(): Promise<void> {
+        chrome.storage.local.get(['authToken'], async (result) => {
+            const token: string = result.authToken;
+            console.log("Token:", token);
+
+            if (token) {
+                const response = await apiRequest(Method.GET, '/user', null);
+
+                if (response.success) {
+                    this.renderAuthenticatedUI(response.data);
+                } else {
+                    chrome.storage.local.remove('authToken', () => {
+                        this.renderLoginForm();
+                    });
+                }
+            } else {
+                this.renderLoginForm();
+            }
+        });
+    }
 }
 
-// On load, check authentication status
-document.addEventListener('DOMContentLoaded', checkUserStatus);
+new AuthApp();

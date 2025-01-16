@@ -27,6 +27,9 @@
             "resources": ["content.html", "content.js", "content.css", "assets/*"],
             "matches": ["<all_urls>"]
           }
-    ]
+    ],
+    "content_security_policy": {
+      "extension_pages": "default-src 'self'; connect-src 'self' http://localhost:3000; style-src 'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com"
+    }
   }
   

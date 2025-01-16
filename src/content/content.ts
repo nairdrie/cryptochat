@@ -95,14 +95,102 @@ class DynamicRenderer {
 
     renderTokenInfo(token: Token) {
         if (!this.container) return;
-
+    
+        // Render the token header and chat container
         this.container.innerHTML = `
-            <div>
-                <img src="${token.meta.logoUrl}" alt="Token logo" />
-                <p><strong>${token.meta.ticker}</strong> ${token.meta.name}</p>
-                <p>${token.meta.address}</p>
-            </div>`;
+            <div class="token-container">
+                <div class="token-header">
+                    <img class="token-img" src="${token.meta.logoUrl}" alt="Token logo" />
+                    <h2>
+                        <div class="ticker">
+                            ${token.meta.ticker} 
+                            <i class="fa-solid fa-copy copy-icon" title="Copy address"></i>
+                            <span id="copy-popup" class="copy-popup hidden">Address copied!</span>
+                        </div>
+                        <div class="name">${token.meta.name}</div>
+                    </h2>
+                </div>
+                <div class="token-chat-container">
+                </div>
+            </div>
+        `;
+    
+        // Add click event listener for the copy icon
+        const copyIcon = this.container.querySelector('.copy-icon');
+        if (copyIcon) {
+            copyIcon.addEventListener('click', () => this.copyToClipboard(token.meta.address));
+        }
+    
+        // Render the chat messages
+        this.renderChat(token.messages);
     }
+    
+    // Method to render chat messages
+    renderChat(messages: Message[]) {
+        const chatContainer = this.container?.querySelector('.token-chat-container');
+        if (!chatContainer) return;
+    
+        // Check if there are messages
+        if (messages.length === 0) {
+            chatContainer.innerHTML = `
+                <div class="empty-chat">
+                    <p class="maintext">Nothing to see here...</p>
+                    <p class="subtext">Type a message to get the conversation going.</p>
+                </div>
+                <div class="chat-toolbar">
+                    <input class="message-input" type="text" placeholder="Type a message..." />
+                    <button class="send-message"><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            `;
+            return;
+        }
+    
+        // Render chat messages
+        chatContainer.innerHTML = `
+            <div class="chat-messages">
+                ${messages
+                    .map(
+                        (message) => `
+                    <div class="chat-message">
+                        <div class="message-header">
+                            <span class="username">${message.username}</span>
+                            <span class="timestamp">${new Date(
+                                message.timestamp
+                            ).toLocaleString()}</span>
+                        </div>
+                        <div class="message-body">${message.message}</div>
+                    </div>
+                `
+                    )
+                    .join('')}
+            </div>
+        `;
+    }
+    
+    
+    // Method to copy to clipboard and show a popup
+    copyToClipboard(text: string) {
+        navigator.clipboard.writeText(text).then(() => {
+            this.showPopup("Address copied!");
+        }).catch((err) => {
+            console.error("Failed to copy text:", err);
+        });
+    }
+    
+    // Method to show a temporary popup
+    showPopup(message: string) {
+        const popup = document.getElementById('copy-popup');
+        if (!popup) return;
+    
+        popup.textContent = message;
+        popup.classList.remove('hidden');
+    
+        // Hide the popup after 2 seconds
+        setTimeout(() => {
+            popup.classList.add('hidden');
+        }, 20000);
+    }
+    
 
     renderCreateTokenForm(tokenAddress: string) {
         if (!this.container) return;
@@ -157,6 +245,11 @@ class Sidebar {
         const font = new FontFace('Passion One', `url(${chrome.runtime.getURL('assets/PassionOne-Regular.ttf')})`);
         await font.load();
         document.fonts.add(font);
+        // Inject local Font Awesome stylesheet
+        const faLocal = document.createElement('link');
+        faLocal.rel = 'stylesheet';
+        faLocal.href = chrome.runtime.getURL('assets/fa/css/font-awesome-all.min.css');
+        (document.head || document.documentElement).appendChild(faLocal);
     }
 
     async injectSidebar() {
@@ -236,7 +329,7 @@ class Sidebar {
         console.log('Initializing token...');
         const tokenAddress = EnvironmentDetector.getTokenAddress(window.location.href);
         if (!tokenAddress) {
-            this.renderer.renderError("Error loading token info.");
+            this.renderer.renderError("Navigate to a token page to chat.");
             return;
         }
 
