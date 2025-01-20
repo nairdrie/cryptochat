@@ -7,13 +7,10 @@ type Message = {
 };
 
 type Token = {
-    meta: {
-        address: string;
-        ticker: string;
-        name: string;
-        logoUrl: string;
-    };
-    messages: Message[];
+    address: string;
+    ticker: string;
+    name: string;
+    logoUrl: string;
 };
 
 // Enums for environments and routes
@@ -26,6 +23,7 @@ enum ENV {
 enum ROUTES {
     AUTHENTICATION = '/authentication',
     TOKEN = '/token',
+    CHAT = '/chat'
 };
 
 // Utility to detect current environment
@@ -106,14 +104,14 @@ class DynamicRenderer {
         this.container.innerHTML = `
             <div class="token-container">
                 <div class="token-header">
-                    <img class="token-img" src="${token.meta.logoUrl}" alt="Token logo" />
+                    <img class="token-img" src="${token.logoUrl}" alt="Token logo" />
                     <h2>
                         <div class="ticker">
-                            ${token.meta.ticker} 
+                            ${token.ticker} 
                             <i class="fa-solid fa-copy copy-icon" title="Copy address"></i>
                             <span id="copy-popup" class="copy-popup hidden">Address copied!</span>
                         </div>
-                        <div class="name">${token.meta.name}</div>
+                        <div class="name">${token.name}</div>
                     </h2>
                 </div>
                 <div class="token-chat-container">
@@ -124,11 +122,8 @@ class DynamicRenderer {
         // Add click event listener for the copy icon
         const copyIcon = this.container.querySelector('.copy-icon');
         if (copyIcon) {
-            copyIcon.addEventListener('click', () => this.copyToClipboard(token.meta.address));
+            copyIcon.addEventListener('click', () => this.copyToClipboard(token.address));
         }
-
-        // Render the chat messages
-        this.renderChat(token.messages);
     }
 
     getElapsedTime(timestamp: string) {
@@ -383,37 +378,48 @@ class Sidebar {
 
     async initializeToken() {
         if (!this.renderer) return;
-        
+    
         const tokenAddress = EnvironmentDetector.getTokenAddress(window.location.href);
         if (!tokenAddress) {
             this.renderer.renderError("Navigate to a token page to chat.");
             return;
         }
-
+    
         this.currentTokenAddress = tokenAddress;
         this.renderer.renderLoading("Getting token info...");
-
+    
         try {
             const response = await apiRequest(Method.GET, `${ROUTES.TOKEN}/${tokenAddress}`);
-
+            
             if (response.success) {
                 this.token = response.data;
                 this.renderer.renderTokenInfo(this.token);
+    
+                // Fetch and render chat messages
+                await this.fetchAndRenderChatMessages(tokenAddress);
+    
+                // Connect to the stream
                 await connectToStream(tokenAddress);
             } 
             else if (response.status === 404) {
                 const createResponse = await apiRequest(Method.POST, `${ROUTES.TOKEN}`, {
                     address: tokenAddress
                 });
-
+    
                 if (createResponse.success) {
                     this.token = createResponse.data;
                     this.renderer.renderTokenInfo(this.token);
+    
+                    // Fetch and render chat messages
+                    await this.fetchAndRenderChatMessages(tokenAddress);
+
+                    // Connect to the stream
+                    await connectToStream(tokenAddress);
                 } else {
                     this.renderer.renderError("Failed to fetch token info.");
                 }
             }
-            else if(response.status === 401 || response.status === 403) {
+            else if (response.status === 401 || response.status === 403) {
                 this.renderer.renderError("Looks like you're not signed in.", "Click the CryptoChat extension icon to sign in.");
             }
             else {
@@ -424,6 +430,32 @@ class Sidebar {
             this.renderer.renderError("Failed to fetch token info.");
         }
     }
+    
+    /**
+     * Fetches chat messages for the given token and renders them.
+     * @param {string} tokenAddress 
+     */
+    async fetchAndRenderChatMessages(tokenAddress: string) {
+        console.log("Fetching chat messages...");
+        if (!this.renderer) return;
+        try {
+            this.renderer.renderLoading("Fetching chat...");
+            const chatResponse = await apiRequest(Method.GET, `${ROUTES.CHAT}/${tokenAddress}`);
+            console.log(chatResponse);
+            if (chatResponse.success) {
+                const tokenMessages = chatResponse.data;
+                
+                // Render the chat messages
+                this.renderer.renderChat(tokenMessages);
+            } else {
+                this.renderer.renderError("Failed to fetch chat messages.");
+            }
+        } catch (error) {
+            console.error('Error fetching chat messages:', error);
+            this.renderer.renderError("Failed to fetch chat messages.");
+        }
+    }
+    
 }
 
 // Initialize the sidebar instance
