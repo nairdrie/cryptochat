@@ -113,6 +113,7 @@ class AuthApp {
             if (response.success) {
                 chrome.storage.local.set({ authToken: response.data.token }, () => {
                     this.checkUserStatus();
+                    chrome.runtime.sendMessage({ action: 'authenticated' });
                 });
             } else {
                 const error = response.data ? response.data.error : "An error occurred. Please try again.";

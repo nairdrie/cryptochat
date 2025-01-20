@@ -76,6 +76,9 @@
     flex-direction:column;
     justify-content: center;
     align-items: center;
+    padding: 2em;
+    text-align: center;
+    color:rgb(182, 182, 182);
 }
 
 #CryptoChat .token-container {
@@ -188,12 +191,12 @@
     box-sizing: border-box; /* Include padding in width calculations */
 }
 
-#CryptoChat .empty-chat .maintext {
+#CryptoChat .maintext {
     font-size: 1.2em;
     font-weight:bold;
 }
 
-#CryptoChat .empty-chat .subtext {
+#CryptoChat .subtext {
     font-size: 1em;
 }
 

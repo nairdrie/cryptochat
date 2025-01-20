@@ -19,3 +19,21 @@ export async function apiRequest(method: Method, route: string, body?: any): Pro
         );
     });
 }
+
+export async function connectToStream(tokenAddress: string) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+            {
+                action: 'connectToStream',
+                tokenAddress: tokenAddress,
+            },
+            (response) => {
+                if (response.success) {
+                    resolve(true);
+                } else {
+                    reject();
+                }
+            }
+        );
+    });
+}

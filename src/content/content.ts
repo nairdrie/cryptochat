@@ -1,10 +1,10 @@
-import { apiRequest, Method } from "../util/apiRequest";
+import { apiRequest, connectToStream, Method } from "../util/apiRequest";
 
 type Message = {
     username: string;
-    message: string;
+    content: string;
     timestamp: string;
-}
+};
 
 type Token = {
     meta: {
@@ -12,9 +12,9 @@ type Token = {
         ticker: string;
         name: string;
         logoUrl: string;
-    },
+    };
     messages: Message[];
-}
+};
 
 // Enums for environments and routes
 enum ENV {
@@ -48,7 +48,8 @@ class EnvironmentDetector {
             if(urlParts.length < 3) return null;
             if(urlParts[urlParts.length - 2] != 'coin') return null;
             return urlParts[urlParts.length - 1];
-        } else if (currentEnvironment === ENV.BULLX) {
+        } 
+        else if (currentEnvironment === ENV.BULLX) {
             const urlParams = new URLSearchParams(window.location.search);
             if(!urlParams.has('address')) return null;
             return urlParams.get('address');
@@ -71,12 +72,12 @@ class EnvironmentDetector {
 // Class for rendering dynamic content in the sidebar
 class DynamicRenderer {
     container: HTMLElement | null;
+
     constructor(containerSelector: string) {
         this.container = document.querySelector(containerSelector);
-        // this.container: = document.querySelector(containerSelector);
     }
 
-    renderLoading(message:string = "Loading...") {
+    renderLoading(message = "Loading...") {
         if (!this.container) return;
         this.container.innerHTML = `
             <div class="loader-container">
@@ -85,17 +86,22 @@ class DynamicRenderer {
             </div>`;
     }
 
-    renderError(error:string) {
+    renderError(mainText: string, subText = "") {
         if (!this.container) return;
         this.container.innerHTML = `
             <div class="error-message">
-                <p>${error}</p>
+                ${ mainText ? `<p class="maintext">${mainText}</p>` : '' }
+                ${ subText ? `<p class="subtext">${subText}</p>` : '' }
             </div>`;
     }
 
-    renderTokenInfo(token: Token) {
+    renderTokenInfo(token: Token | null) {
         if (!this.container) return;
-    
+        if(!token) {
+            this.renderError('Token info not available.');
+            return;
+        }
+
         // Render the token header and chat container
         this.container.innerHTML = `
             <div class="token-container">
@@ -114,22 +120,22 @@ class DynamicRenderer {
                 </div>
             </div>
         `;
-    
+
         // Add click event listener for the copy icon
         const copyIcon = this.container.querySelector('.copy-icon');
         if (copyIcon) {
             copyIcon.addEventListener('click', () => this.copyToClipboard(token.meta.address));
         }
-    
+
         // Render the chat messages
         this.renderChat(token.messages);
     }
-    
+
     // Method to render chat messages
     renderChat(messages: Message[]) {
         const chatContainer = this.container?.querySelector('.token-chat-container');
         if (!chatContainer) return;
-    
+
         // Check if there are messages
         if (messages.length === 0) {
             chatContainer.innerHTML = `
@@ -142,31 +148,46 @@ class DynamicRenderer {
                     <button class="send-message"><i class="fa-solid fa-arrow-right"></i></button>
                 </div>
             `;
-            return;
         }
-    
-        // Render chat messages
-        chatContainer.innerHTML = `
-            <div class="chat-messages">
-                ${messages
-                    .map(
-                        (message) => `
-                    <div class="chat-message">
-                        <div class="message-header">
-                            <span class="username">${message.username}</span>
-                            <span class="timestamp">${new Date(
-                                message.timestamp
-                            ).toLocaleString()}</span>
+        else {
+            // Render chat messages
+            chatContainer.innerHTML = `
+                <div class="chat-messages">
+                    ${messages
+                        .map(
+                            (message) => `
+                        <div class="chat-message">
+                            <div class="message-header">
+                                <span class="username">${message.username}</span>
+                                <span class="timestamp">${new Date(
+                                    message.timestamp
+                                ).toLocaleString()}</span>
+                            </div>
+                            <div class="message-body">${message.content}</div>
                         </div>
-                        <div class="message-body">${message.message}</div>
-                    </div>
-                `
-                    )
-                    .join('')}
-            </div>
-        `;
+                    `
+                        )
+                        .join('')}
+                </div>
+                <div class="chat-toolbar">
+                    <input class="message-input" type="text" placeholder="Type a message..." />
+                    <button class="send-message"><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            `;
+        }
+
+        const sendButton = chatContainer.querySelector('.send-message');
+        const inputField = chatContainer.querySelector('.message-input') as HTMLInputElement;
+
+        if (sendButton && inputField) {
+            sendButton.addEventListener('click', () => this.sendMessage(inputField.value));
+            inputField.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    this.sendMessage(inputField.value);
+                }
+            });
+        }
     }
-    
     
     // Method to copy to clipboard and show a popup
     copyToClipboard(text: string) {
@@ -176,7 +197,7 @@ class DynamicRenderer {
             console.error("Failed to copy text:", err);
         });
     }
-    
+
     // Method to show a temporary popup
     showPopup(message: string) {
         const popup = document.getElementById('copy-popup');
@@ -190,15 +211,45 @@ class DynamicRenderer {
             popup.classList.add('hidden');
         }, 20000);
     }
-    
 
-    renderCreateTokenForm(tokenAddress: string) {
-        if (!this.container) return;
-        this.container.innerHTML = `
-            <div>
-                <p>No token found for address: ${tokenAddress}</p>
-                <p>Creating a new token chatroom...</p>
+    appendChatMessage(message: Message) {
+        const chatMessages = this.container?.querySelector('.chat-messages');
+        if (!chatMessages) return;
+
+        chatMessages.innerHTML += `
+            <div class="chat-message">
+                <div class="message-header">
+                    <span class="username">${message.username}</span>
+                    <span class="timestamp">${new Date(message.timestamp).toLocaleString()}</span>
+                </div>
+                <div class="message-body">${message.content}</div>
             </div>`;
+    }
+
+    async sendMessage(content: string) {
+        console.log("SENDING MESSAGE");
+        if (!content.trim()) return;
+        const tokenAddress = sidebar.currentTokenAddress;
+        if (!tokenAddress) {
+            this.renderError('No token address available for sending messages.');
+            return;
+        }
+
+        try {
+            const response = await apiRequest(Method.POST, '/chat', {
+                tokenAddress,
+                content,
+            });
+
+            if (response.success) {
+                const inputField = this.container?.querySelector('.message-input') as HTMLInputElement;
+                if (inputField) inputField.value = '';
+            } else {
+                console.error('Failed to send message:', response);
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
     }
 }
 
@@ -212,6 +263,7 @@ class Sidebar {
     currentTokenAddress: string | null;
     pollingInterval: number;
     pollingTimer: number | null;
+    token: Token | null;
 
     constructor(popupWidth = '300px') {
         this.popupWidth = popupWidth;
@@ -220,8 +272,9 @@ class Sidebar {
         this.currentEnvironment = EnvironmentDetector.getEnvironment(window.location.href);
         this.renderer = null;
         this.currentTokenAddress = null;
-        this.pollingInterval = 3000; // Check every 3 seconds
+        this.pollingInterval = 3000;
         this.pollingTimer = null;
+        this.token = null;
     }
 
     startPolling() {
@@ -279,9 +332,7 @@ class Sidebar {
             this.renderer = new DynamicRenderer('#CryptoChat .body');
             this.renderer.renderLoading("");
 
-            // Start polling for token changes
             this.startPolling();
-
             this.initializeToken();
         } catch (error) {
             console.error("Failed to inject sidebar:", error);
@@ -292,10 +343,9 @@ class Sidebar {
         document.getElementById("CryptoChat")?.remove();
         this.resetDocumentStyles();
         this.sidebarVisible = false;
-
-        // Stop polling when sidebar is removed
         this.stopPolling();
     }
+
 
     setDocumentStyles() {
         if (this.currentEnvironment === ENV.DEXSCREENER) {
@@ -326,30 +376,44 @@ class Sidebar {
 
     async initializeToken() {
         if (!this.renderer) return;
-        console.log('Initializing token...');
+        
         const tokenAddress = EnvironmentDetector.getTokenAddress(window.location.href);
         if (!tokenAddress) {
             this.renderer.renderError("Navigate to a token page to chat.");
             return;
         }
 
-        this.currentTokenAddress = tokenAddress; // Update current token address
+        this.currentTokenAddress = tokenAddress;
         this.renderer.renderLoading("Getting token info...");
-        const response = await apiRequest(Method.GET, `${ROUTES.TOKEN}/${tokenAddress}`);
 
-        if (response.success) {
-            this.renderer.renderTokenInfo(response.data);
-        } else if (response.status === 404) {
-            const createResponse = await apiRequest(Method.POST, `${ROUTES.TOKEN}`, {
-                address: tokenAddress
-            });
+        try {
+            const response = await apiRequest(Method.GET, `${ROUTES.TOKEN}/${tokenAddress}`);
 
-            if (createResponse.success) {
-                this.renderer.renderTokenInfo(createResponse.data);
-            } else {
+            if (response.success) {
+                this.token = response.data;
+                this.renderer.renderTokenInfo(this.token);
+                await connectToStream(tokenAddress);
+            } 
+            else if (response.status === 404) {
+                const createResponse = await apiRequest(Method.POST, `${ROUTES.TOKEN}`, {
+                    address: tokenAddress
+                });
+
+                if (createResponse.success) {
+                    this.token = createResponse.data;
+                    this.renderer.renderTokenInfo(this.token);
+                } else {
+                    this.renderer.renderError("Failed to fetch token info.");
+                }
+            }
+            else if(response.status === 401 || response.status === 403) {
+                this.renderer.renderError("Looks like you're not signed in.", "Click the CryptoChat extension icon to sign in.");
+            }
+            else {
                 this.renderer.renderError("Failed to fetch token info.");
             }
-        } else {
+        } catch (error) {
+            console.error('Error initializing token:', error);
             this.renderer.renderError("Failed to fetch token info.");
         }
     }
@@ -358,7 +422,6 @@ class Sidebar {
 // Initialize the sidebar instance
 const sidebar = new Sidebar();
 
-// Listen for messages from the background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.action === "toggleSidebarOn") {
         sidebar.injectSidebar();
@@ -366,10 +429,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     } else if (request.action === "toggleSidebarOff") {
         sidebar.removeSidebar();
         sendResponse({ status: "Sidebar toggled off" });
+    } else if (request.action === 'newChatMessages') {
+        const newMessages: Message[] = request.data;
+        newMessages.forEach((msg) => sidebar.renderer?.appendChatMessage(msg));
+    } else if (request.action === "authenticated") {
+        sidebar.initializeToken();
     }
 });
 
-// On load, retrieve the toggle preference from storage
 chrome.storage.local.get(['togglePreference'], (result) => {
     const isChecked = result.togglePreference || false;
     if (isChecked) {
