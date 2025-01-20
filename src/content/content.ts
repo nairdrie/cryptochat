@@ -131,6 +131,34 @@ class DynamicRenderer {
         this.renderChat(token.messages);
     }
 
+    getElapsedTime(timestamp: string) {
+        const messageTime = new Date(timestamp).getTime();
+        const currentTime = new Date().getTime();
+        const elapsed = currentTime - messageTime;
+
+        const seconds = Math.floor(elapsed / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+
+        if (days > 0) return `${days}d ago`;
+        if (hours > 0) return `${hours}h ago`;
+        if (minutes > 0) return `${minutes}m ago`;
+        return `${seconds}s ago`;
+    }
+
+    renderMessage(message: Message) {
+        return `
+            <div class="chat-message">
+                <div class="message-header">
+                    <span class="username">${message.username}</span>
+                        <span class="timestamp">${this.getElapsedTime(message.timestamp)}</span>
+                </div>
+                <div class="message-body">${message.content}</div>
+            </div>
+        `;
+    }
+
     // Method to render chat messages
     renderChat(messages: Message[]) {
         const chatContainer = this.container?.querySelector('.token-chat-container');
@@ -153,21 +181,7 @@ class DynamicRenderer {
             // Render chat messages
             chatContainer.innerHTML = `
                 <div class="chat-messages">
-                    ${messages
-                        .map(
-                            (message) => `
-                        <div class="chat-message">
-                            <div class="message-header">
-                                <span class="username">${message.username}</span>
-                                <span class="timestamp">${new Date(
-                                    message.timestamp
-                                ).toLocaleString()}</span>
-                            </div>
-                            <div class="message-body">${message.content}</div>
-                        </div>
-                    `
-                        )
-                        .join('')}
+                    ${messages.map((message) => this.renderMessage(message)).join('')}
                 </div>
                 <div class="chat-toolbar">
                     <input class="message-input" type="text" placeholder="Type a message..." />
@@ -216,14 +230,7 @@ class DynamicRenderer {
         const chatMessages = this.container?.querySelector('.chat-messages');
         if (!chatMessages) return;
 
-        chatMessages.innerHTML += `
-            <div class="chat-message">
-                <div class="message-header">
-                    <span class="username">${message.username}</span>
-                    <span class="timestamp">${new Date(message.timestamp).toLocaleString()}</span>
-                </div>
-                <div class="message-body">${message.content}</div>
-            </div>`;
+        chatMessages.innerHTML += this.renderMessage(message);
     }
 
     async sendMessage(content: string) {
