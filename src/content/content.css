@@ -204,31 +204,53 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    flex-grow: 1;
+    padding:1em;
 }
 
 #CryptoChat .chat-message {
-    padding: 10px;
-    border-radius: 5px;
-    background-color: #fff;
+    color:white;
+    display:flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+#CryptoChat .chat-message .message-body {
+    padding: 0.4em 0.8em;
+    border-radius: 1em;
+    background-color: #393939;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-top-left-radius: 0;
+    border-top-right-radius: 1em;
+    max-width: 90%;
+    color: white;
+}
+
+#CryptoChat .chat-message.self {
+    align-items: flex-end;
+}
+
+#CryptoChat .chat-message.self .message-body {
+    background-color: #0fb9e4;
+    color:rgb(31 20 73);
+    border-top-left-radius: 1em;
+    border-top-right-radius: 0;
 }
 
 #CryptoChat .message-header {
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 5px;
+    align-items: center;
     font-size: 0.9em;
-    color: #555;
 }
 
 #CryptoChat .username {
-    font-weight: bold;
-    color: #333;
+
 }
 
 #CryptoChat .timestamp {
-    font-style: italic;
+    font-size:0.8em;
     color: #999;
+    padding-top: 0.2em;
 }
 
 #CryptoChat .message-body {

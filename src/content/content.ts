@@ -4,6 +4,7 @@ type Message = {
     username: string;
     content: string;
     timestamp: string;
+    self: boolean;
 };
 
 type Token = {
@@ -70,9 +71,24 @@ class EnvironmentDetector {
 // Class for rendering dynamic content in the sidebar
 class DynamicRenderer {
     container: HTMLElement | null;
+    private elapsedTimeInterval: number | null = null;
 
     constructor(containerSelector: string) {
         this.container = document.querySelector(containerSelector);
+    }
+
+    startElapsedTimeUpdates() {
+        if (this.elapsedTimeInterval) return; // Prevent multiple intervals
+        this.elapsedTimeInterval = window.setInterval(() => {
+            this.updateElapsedTimes();
+        }, 10000); // Update every minute
+    }
+
+    stopElapsedTimeUpdates() {
+        if (this.elapsedTimeInterval) {
+            clearInterval(this.elapsedTimeInterval);
+            this.elapsedTimeInterval = null;
+        }
     }
 
     renderLoading(message = "Loading...") {
@@ -127,7 +143,7 @@ class DynamicRenderer {
     }
 
     getElapsedTime(timestamp: string) {
-        const messageTime = new Date(timestamp).getTime();
+        const messageTime = new Date(+timestamp).getTime();
         const currentTime = new Date().getTime();
         const elapsed = currentTime - messageTime;
 
@@ -139,24 +155,26 @@ class DynamicRenderer {
         if (days > 0) return `${days}d ago`;
         if (hours > 0) return `${hours}h ago`;
         if (minutes > 0) return `${minutes}m ago`;
-        return `${seconds}s ago`;
+        return `now`;
     }
 
     renderMessage(message: Message) {
         return `
-            <div class="chat-message">
+            <div class="chat-message ${message.self ? 'self' : ''}" data-timestamp="${message.timestamp}">
                 <div class="message-header">
-                    <span class="username">${message.username}</span>
-                        <span class="timestamp">${this.getElapsedTime(message.timestamp)}</span>
+                    <span class="username">${message.username}</span>&nbsp;
+                    <span class="timestamp">${this.getElapsedTime(message.timestamp)}</span>
                 </div>
                 <div class="message-body">${message.content}</div>
             </div>
         `;
     }
+    
 
     // Method to render chat messages
     renderChat(messages: Message[]) {
         const chatContainer = this.container?.querySelector('.token-chat-container');
+        console.log("Chat container:", chatContainer);
         if (!chatContainer) return;
 
         // Check if there are messages
@@ -196,6 +214,9 @@ class DynamicRenderer {
                 }
             });
         }
+
+        // Start elapsed time updates
+        this.startElapsedTimeUpdates();
     }
     
     // Method to copy to clipboard and show a popup
@@ -253,6 +274,23 @@ class DynamicRenderer {
             console.error('Error sending message:', error);
         }
     }
+
+    updateElapsedTimes() {
+        const timestamps = this.container?.querySelectorAll('.timestamp');
+        if (!timestamps) return;
+    
+        timestamps.forEach((timestampElement) => {
+            const messageElement = timestampElement.closest('.chat-message');
+            if (!messageElement) return;
+    
+            const timestampAttr = messageElement.getAttribute('data-timestamp');
+            if (!timestampAttr) return;
+    
+            const elapsedTime = this.getElapsedTime(timestampAttr);
+            timestampElement.textContent = elapsedTime;
+        });
+    }
+    
 }
 
 // Sidebar logic
@@ -439,7 +477,6 @@ class Sidebar {
         console.log("Fetching chat messages...");
         if (!this.renderer) return;
         try {
-            this.renderer.renderLoading("Fetching chat...");
             const chatResponse = await apiRequest(Method.GET, `${ROUTES.CHAT}/${tokenAddress}`);
             console.log(chatResponse);
             if (chatResponse.success) {
