@@ -1,6 +1,7 @@
 import { apiRequest, connectToStream, Method } from "../util/apiRequest";
 
 type Message = {
+    id: string;
     username: string;
     content: string;
     timestamp: string;
@@ -72,9 +73,11 @@ class EnvironmentDetector {
 class DynamicRenderer {
     container: HTMLElement | null;
     private elapsedTimeInterval: number | null = null;
+    public renderedMessageIds: Set<string>; // To track rendered message IDs
 
     constructor(containerSelector: string) {
         this.container = document.querySelector(containerSelector);
+        this.renderedMessageIds = new Set();
     }
 
     startElapsedTimeUpdates() {
@@ -172,36 +175,28 @@ class DynamicRenderer {
     
 
     // Method to render chat messages
-    renderChat(messages: Message[]) {
+    renderChat() {
         const chatContainer = this.container?.querySelector('.token-chat-container');
-        console.log("Chat container:", chatContainer);
         if (!chatContainer) return;
 
-        // Check if there are messages
-        if (messages.length === 0) {
-            chatContainer.innerHTML = `
+        // Clear the rendered message set
+        this.renderedMessageIds.clear();
+
+
+        chatContainer.innerHTML = `
+            <div class="chat-messages">
                 <div class="empty-chat">
                     <p class="maintext">Nothing to see here...</p>
                     <p class="subtext">Type a message to get the conversation going.</p>
                 </div>
-                <div class="chat-toolbar">
-                    <input class="message-input" type="text" placeholder="Type a message..." />
-                    <button class="send-message"><i class="fa-solid fa-arrow-right"></i></button>
-                </div>
-            `;
-        }
-        else {
-            // Render chat messages
-            chatContainer.innerHTML = `
-                <div class="chat-messages">
-                    ${messages.map((message) => this.renderMessage(message)).join('')}
-                </div>
-                <div class="chat-toolbar">
-                    <input class="message-input" type="text" placeholder="Type a message..." />
-                    <button class="send-message"><i class="fa-solid fa-arrow-right"></i></button>
-                </div>
-            `;
-        }
+            </div>
+            <div class="chat-toolbar">
+                <input class="message-input" type="text" placeholder="Type a message..." />
+                <button class="send-message"><i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        `;
+        
+        
 
         const sendButton = chatContainer.querySelector('.send-message');
         const inputField = chatContainer.querySelector('.message-input') as HTMLInputElement;
@@ -242,11 +237,19 @@ class DynamicRenderer {
         }, 20000);
     }
 
+    // Update appendChatMessage to avoid duplicate messages
     appendChatMessage(message: Message) {
+        // Check if the message is already rendered
+        if (this.renderedMessageIds.has(message.id)) return;
+
         const chatMessages = this.container?.querySelector('.chat-messages');
         if (!chatMessages) return;
 
-        chatMessages.innerHTML += this.renderMessage(message);
+        const emptyChat = this.container?.querySelector('.empty-chat');
+        if (emptyChat) emptyChat.remove();
+
+        chatMessages.innerHTML = this.renderMessage(message) + chatMessages.innerHTML;
+        this.renderedMessageIds.add(message.id);
     }
 
     async sendMessage(content: string) {
@@ -319,6 +322,7 @@ class Sidebar {
 
     startPolling() {
         this.pollingTimer = window.setInterval(async () => {
+            console.log("POLLING");
             const newTokenAddress = EnvironmentDetector.getTokenAddress(window.location.href);
             if (newTokenAddress !== this.currentTokenAddress && newTokenAddress != null) {
                 this.currentTokenAddress = newTokenAddress;
@@ -425,6 +429,7 @@ class Sidebar {
     
         this.currentTokenAddress = tokenAddress;
         this.renderer.renderLoading("Getting token info...");
+        this.renderer.renderedMessageIds.clear(); // Reset the rendered IDs
     
         try {
             const response = await apiRequest(Method.GET, `${ROUTES.TOKEN}/${tokenAddress}`);
@@ -433,9 +438,8 @@ class Sidebar {
                 this.token = response.data;
                 this.renderer.renderTokenInfo(this.token);
     
-                // Fetch and render chat messages
-                await this.fetchAndRenderChatMessages(tokenAddress);
-    
+                await this.renderer.renderChat();
+
                 // Connect to the stream
                 await connectToStream(tokenAddress);
             } 
@@ -448,8 +452,7 @@ class Sidebar {
                     this.token = createResponse.data;
                     this.renderer.renderTokenInfo(this.token);
     
-                    // Fetch and render chat messages
-                    await this.fetchAndRenderChatMessages(tokenAddress);
+                    await this.renderer.renderChat();
 
                     // Connect to the stream
                     await connectToStream(tokenAddress);
@@ -469,29 +472,29 @@ class Sidebar {
         }
     }
     
-    /**
-     * Fetches chat messages for the given token and renders them.
-     * @param {string} tokenAddress 
-     */
-    async fetchAndRenderChatMessages(tokenAddress: string) {
-        console.log("Fetching chat messages...");
-        if (!this.renderer) return;
-        try {
-            const chatResponse = await apiRequest(Method.GET, `${ROUTES.CHAT}/${tokenAddress}`);
-            console.log(chatResponse);
-            if (chatResponse.success) {
-                const tokenMessages = chatResponse.data;
+    // /**
+    //  * Fetches chat messages for the given token and renders them.
+    //  * @param {string} tokenAddress 
+    //  */
+    // async fetchAndRenderChatMessages(tokenAddress: string) {
+    //     console.log("Fetching chat messages...");
+    //     if (!this.renderer) return;
+    //     try {
+    //         const chatResponse = await apiRequest(Method.GET, `${ROUTES.CHAT}/${tokenAddress}`);
+    //         console.log(chatResponse);
+    //         if (chatResponse.success) {
+    //             const tokenMessages = chatResponse.data;
                 
-                // Render the chat messages
-                this.renderer.renderChat(tokenMessages);
-            } else {
-                this.renderer.renderError("Failed to fetch chat messages.");
-            }
-        } catch (error) {
-            console.error('Error fetching chat messages:', error);
-            this.renderer.renderError("Failed to fetch chat messages.");
-        }
-    }
+    //             // Render the chat messages
+    //             this.renderer.renderChat(tokenMessages);
+    //         } else {
+    //             this.renderer.renderError("Failed to fetch chat messages.");
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching chat messages:', error);
+    //         this.renderer.renderError("Failed to fetch chat messages.");
+    //     }
+    // }
     
 }
 
@@ -507,7 +510,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ status: "Sidebar toggled off" });
     } else if (request.action === 'newChatMessages') {
         const newMessages: Message[] = request.data;
-        newMessages.forEach((msg) => sidebar.renderer?.appendChatMessage(msg));
+
+        // Append only new messages
+        newMessages.forEach((msg) => {
+            if (!sidebar.renderer?.renderedMessageIds.has(msg.id)) {
+                sidebar.renderer?.appendChatMessage(msg);
+            }
+        });
+        sendResponse({ status: "Messages processed" });
+
     } else if (request.action === "authenticated") {
         sidebar.initializeToken();
     }

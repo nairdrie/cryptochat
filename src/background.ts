@@ -75,7 +75,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
 
             // Open a new stream
-            const eventSource = new EventSource(`http://localhost:3000/chatStream?tokenAddress=${tokenAddress} &jwt=${jwt}`);
+            const eventSource = new EventSource(`http://localhost:3000/chatStream?tokenAddress=${tokenAddress}&jwt=${jwt}`);
             streams[tabId] = { tokenAddress, eventSource };
 
             eventSource.onmessage = (event) => {
@@ -109,6 +109,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         return true;
+    } else if (message.action === 'authenticated') {
+        chrome.tabs.query({}, (tabs) => {
+            for (const tab of tabs) {
+                chrome.tabs.sendMessage(tab.id!, { action: 'authenticated' });
+            }
+        });
     }
 });
 

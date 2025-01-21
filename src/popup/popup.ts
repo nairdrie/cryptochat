@@ -86,7 +86,7 @@ class AuthApp {
         });
     }
 
-    private attachLoginEvent(): void {
+    private async attachLoginEvent() {
         const loginForm = document.getElementById('loginForm');
         if (!loginForm) return;
 
@@ -111,8 +111,9 @@ class AuthApp {
             const response = await apiRequest(Method.POST, '/authentication', { email, password });
 
             if (response.success) {
-                chrome.storage.local.set({ authToken: response.data.token }, () => {
-                    this.checkUserStatus();
+                chrome.storage.local.set({ authToken: response.data.token }, async () => {
+                    await this.checkUserStatus();
+                    // send message to background script to notify that user is authenticated
                     chrome.runtime.sendMessage({ action: 'authenticated' });
                 });
             } else {
@@ -123,23 +124,26 @@ class AuthApp {
     }
 
     private async checkUserStatus(): Promise<void> {
-        chrome.storage.local.get(['authToken'], async (result) => {
-            const token: string = result.authToken;
-            console.log("Token:", token);
-
-            if (token) {
-                const response = await apiRequest(Method.GET, '/user', null);
-
-                if (response.success) {
-                    this.renderAuthenticatedUI(response.data);
+        return new Promise((resolve) => {
+            chrome.storage.local.get(['authToken'], async (result) => {
+                const token: string = result.authToken;
+                console.log("Token:", token);
+    
+                if (token) {
+                    const response = await apiRequest(Method.GET, '/user', null);
+    
+                    if (response.success) {
+                        this.renderAuthenticatedUI(response.data);
+                    } else {
+                        chrome.storage.local.remove('authToken', () => {
+                            this.renderLoginForm();
+                        });
+                    }
                 } else {
-                    chrome.storage.local.remove('authToken', () => {
-                        this.renderLoginForm();
-                    });
+                    this.renderLoginForm();
                 }
-            } else {
-                this.renderLoginForm();
-            }
+                resolve();
+            });
         });
     }
 }

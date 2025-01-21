@@ -31,6 +31,7 @@
 }
 #CryptoChat .body {
     flex-grow: 1;
+    overflow-y: auto;
 }
 
 #CryptoChat #headerLogo {
@@ -151,6 +152,7 @@
     flex-grow:1;
     display:flex;
     flex-direction:column;
+    overflow-y:auto;
 }
 
 #CryptoChat .token-chat-container .empty-chat {
@@ -202,10 +204,11 @@
 
 #CryptoChat .chat-messages {
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     gap: 10px;
     flex-grow: 1;
     padding:1em;
+    overflow-y: auto;
 }
 
 #CryptoChat .chat-message {
@@ -256,4 +259,34 @@
 #CryptoChat .message-body {
     font-size: 1em;
     color: #444;
+}
+
+
+
+/* Target the entire scrollbar */
+#CryotoChat .chat-messages::-webkit-scrollbar {
+    width: 10px; /* Width of the vertical scrollbar */
+    height: 10px; /* Height of the horizontal scrollbar */
+}
+
+/* The scrollbar track (background) */
+#CryotoChat .chat-messages::-webkit-scrollbar-track {
+    background: #f0f0f0; /* Light gray background */
+    border-radius: 5px; /* Rounded corners for the track */
+}
+
+/* The scrollbar thumb (draggable part) */
+#CryotoChat .chat-messages::-webkit-scrollbar-thumb {
+    background: #888; /* Dark gray thumb */
+    border-radius: 5px; /* Rounded corners for the thumb */
+}
+
+/* Hover effect for the thumb */
+#CryotoChat .chat-messages::-webkit-scrollbar-thumb:hover {
+    background: #555; /* Darker gray when hovered */
+}
+
+/* Corner styling for scrollable containers */
+#CryotoChat .chat-messages::-webkit-scrollbar-corner {
+    background: #f0f0f0; /* Same as track background */
 }
